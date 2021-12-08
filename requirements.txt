@@ -1,0 +1,9 @@
+flask
+flask-restx
+pandas
+Werkzeug
+flask-sqlalchemy
+waitress
+google-cloud-secret-manager==2.5.0
+pg8000
+cloud-sql-python-connector==0.1.0

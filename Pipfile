@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+cloud-sql-python-connector = "==0.1.0"
+pg8000 = "*"
+waitress = "*"
+flask-restx = "*"
+pandas = "*"
+google-cloud-secret-manager = "==2.5.0"
+Flask = "*"
+Werkzeug = "*"
+Flask-SQLAlchemy = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.6"
