@@ -18,11 +18,15 @@ ns = api.namespace("shows", description="Netflix Shows")
 # app.config["SQLALCHEMY_ECHO"] = True
 
 if socket.gethostname() == "DESKTOP-C32MC01":
-    db_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "netflix.db")
+    db_file_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "netflix.db"
+    )
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_file_path}"
 else:
+
     def access_secret_version(secret_id, version_id="latest"):
         from google.cloud import secretmanager
+
         PROJECT_ID = os.environ.get("GCP_PROJECT", "theta-messenger-334101")
         # Create the Secret Manager client.
         client = secretmanager.SecretManagerServiceClient()
@@ -34,7 +38,7 @@ else:
         response = client.access_secret_version(name=name)
 
         # Return the decoded payload.
-        return response.payload.data.decode('UTF-8')
+        return response.payload.data.decode("UTF-8")
 
     def open_connection():
         db_user = access_secret_version("DB_USER")
@@ -45,12 +49,15 @@ else:
             "pg8000",
             user=db_user,
             password=db_pass,
-            db=db_name
+            db=db_name,
         )
         return conn
+
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"creator": open_connection}
     # set the dialect to postgres. without this, the open_connection() is treated as sqllite
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+pg8000://dummy:dummy@localhost/dummy"
+    app.config[
+        "SQLALCHEMY_DATABASE_URI"
+    ] = "postgresql+pg8000://dummy:dummy@localhost/dummy"
 
 db = SQLAlchemy(app)
 
@@ -99,6 +106,7 @@ show_model = api.model(
         ),
     },
 )
+
 
 class Show_V3(db.Model):
     __tablename__ = "shows"
@@ -286,7 +294,7 @@ class ShowsList(Resource):
         if isinstance(_sort_by, str) and isinstance(_sort_direction, str):
             _sort_by = _sort_by.lower().replace(" ", "_")
             if _sort_by in show_model.keys():
-                sort_by_column=getattr(Show, _sort_by)
+                sort_by_column = getattr(Show, _sort_by)
                 # print(sort_by_column)
                 order_column = getattr(sort_by_column, _sort_direction)
                 # print(order_column)
