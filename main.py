@@ -19,12 +19,7 @@ api = Api(
 )
 ns = api.namespace("shows", description="Netflix Shows")
 
-# app.config["SQLALCHEMY_ECHO"] = True
 
-# if socket.gethostname() == "DESKTOP-C32MC01":
-#     db_file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "netflix.db")
-#     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_file_path}"
-# else:
 def access_secret_version(secret_id, version_id="latest"):
     from google.cloud import secretmanager
 
@@ -69,46 +64,46 @@ show_model = api.model(
     "shows",
     {
         "show_id": fields.String(
-            required=True, description="TODO description of show_id column"
+            required=True, description="the unique identifier of a show"
         ),
         "type": fields.String(
-            required=True, description="TODO description of type column"
+            required=True, description="Movie or TV Show"
         ),
         "title": fields.String(
-            required=True, description="TODO description of title column"
+            required=True, description="Name of the Show"
         ),
         "director": fields.List(
             fields.String(
-                required=True, description="TODO description of director column"
+                required=True, description="name(s) of the director(s)"
             )
         ),
         "cast": fields.List(
-            fields.String(required=True, description="TODO description of cast column")
+            fields.String(required=True, description="the people in the show")
         ),
         "country": fields.List(
             fields.String(
-                required=True, description="TODO description of country column"
+                required=True, description="countries where show is available"
             )
         ),
         "date_added": fields.String(
-            required=True, description="TODO description of date_added column"
+            required=True, description="When show was added to netflix catalog"
         ),
         "release_year": fields.Integer(
-            required=True, description="TODO description of release_year column"
+            required=True, description="When show was origionally released"
         ),
         "rating": fields.String(
-            required=True, description="TODO description of rating column"
+            required=True, description="MPAA rating"
         ),
         "duration": fields.String(
-            required=True, description="TODO description of duration column"
+            required=True, description="How long the show is"
         ),
         "listed_in": fields.List(
             fields.String(
-                required=True, description="TODO description of listed_in column"
+                required=True, description="Genres the show is listed in"
             )
         ),
         "description": fields.String(
-            required=True, description="TODO description of description column"
+            required=True, description="Summary of the Show"
         ),
     },
 )
@@ -116,7 +111,6 @@ show_model = api.model(
 
 class Show(db.Model):
     __tablename__ = "shows_v3"
-    __table_args__ = {"extend_existing": True}
     show_id = db.Column(db.Text(), primary_key=True)
     type = db.Column(db.Text(), nullable=False)
     title = db.Column(db.Text(), nullable=False)
@@ -177,20 +171,20 @@ class Show(db.Model):
 
 @ns.route("/")
 @ns.param("page", "The page for pagination (defaults to 1)")
-@ns.param("sort_by", "The sort_by")
-@ns.param("sort_direction", "The sort_direction")
-@ns.param("show_id", "The show_id")
-@ns.param("type", "The type")
-@ns.param("title", "The title")
-@ns.param("director", "The director")
-@ns.param("rating", "The rating")
-@ns.param("cast", "The cast")
-@ns.param("country", "The country")
-@ns.param("date_added", "The date_added in format '%Y-%m-%%d'")
-@ns.param("release_year", "The release_year")
-@ns.param("duration", "The duration")
-@ns.param("listed_in", "The genres the show is listed_in")
-@ns.param("description", "The description")
+@ns.param("sort_by", "The columm to sort by)
+@ns.param("sort_direction", "sort asc or desc")
+@ns.param("show_id", "the unique identifier of a show")
+@ns.param("type", "Movie or TV Show")
+@ns.param("title", "Name of the Show")
+@ns.param("director", "name(s) of the director(s)")
+@ns.param("rating", "The MPAA rating")
+@ns.param("cast", "the people in the show")
+@ns.param("country", "countries where show is available")
+@ns.param("date_added", "When show was added to netflix catalog in format '%Y-%m-%%d'")
+@ns.param("release_year", "When show was origionally released")
+@ns.param("duration", "How long the show is")
+@ns.param("listed_in", "Genres the show is listed in")
+@ns.param("description", "Summary of the Show")
 class ShowsList(Resource):
     """meaningful comment here."""
 
@@ -199,10 +193,6 @@ class ShowsList(Resource):
     def get(self):
         """List all Shows (filterable)"""
         ROWS_PER_PAGE = 10
-        _query = Show.query
-
-        # TY to the post
-        # https://betterprogramming.pub/how-to-implement-filtering-sorting-and-pagination-in-flask-c4def1ca004a
         _show_id = request.args.get("show_id", None, type=str)
         _type = request.args.get("type", None, type=str)
         _title = request.args.get("title", None, type=str)
@@ -227,11 +217,11 @@ class ShowsList(Resource):
         # http://127.0.0.1:5000/shows/?cast=ryan%20reynolds&rating=PG-13
         #
         # Note
-        # no commas -> Show.<>.ilike(<>)
-        # has commas -> Show.<>.contains(<>)
+        # TEXT/INT/DATE -> Show.<>.ilike(<>)
+        # ARRAY[TEXT] -> Show.<>.contains(<>)
         #
-        # in a real world exampled we would do some data manipulation
-        # and make these a list and make the appropriate changes to the object model
+        _query = Show.query
+        # append one or more filters
         if _show_id:
             _query = _query.filter(Show.show_id.ilike(_show_id))
         if _type:
@@ -239,7 +229,7 @@ class ShowsList(Resource):
         if _title:
             _query = _query.filter(Show.title.ilike(_title))
         if _director:
-            _query = _query.filter(Show.director.ilike(_director))
+            _query = _query.filter(Show.director.contains(_director))
         if _rating:
             _query = _query.filter(Show.rating.ilike(_rating))
         if _cast:
@@ -257,26 +247,20 @@ class ShowsList(Resource):
         if _description:
             _query = _query.filter(Show.description.ilike(_description))
 
+        # check to see if user passed sort flags
         if isinstance(_sort_by, str) and isinstance(_sort_direction, str):
             _sort_by = _sort_by.lower().replace(" ", "_")
             if _sort_by in show_model.keys():
-                sort_by_column = getattr(Show, _sort_by)
-                # print(sort_by_column)
-                order_column = getattr(sort_by_column, _sort_direction)
-                # print(order_column)
-                _query = _query.order_by(order_column())
+                _sort_by_column = getattr(Show, _sort_by)
+                _order_column = getattr(_sort_by_column, _sort_direction)
+                _query = _query.order_by(_order_column())
 
-        _shows = _query.paginate(page=_page, per_page=ROWS_PER_PAGE)
-
-        _paginated = tuple(_shows.items)
-
-        _results = [s.format() for s in _paginated]
-        # http://127.0.0.1:5003/shows/?sort_by=show_id&sort_direction=desc
-
-        # return jsonify({"success": True, "results": _results, "count": len(_results)}) # removed because after changing to `marshal_list_with()``
+        # paginate the response
+        _paginated = _query.paginate(page=_page, per_page=ROWS_PER_PAGE).items
+        _results = [s.format() for s in tuple(_paginated)]
         return _results
 
-    @ns.doc("create_todo")
+    @ns.doc("create_show")
     @ns.expect(show_model)
     @ns.marshal_with(show_model, code=201)
     def post(self):
@@ -287,93 +271,81 @@ class ShowsList(Resource):
             # a little fun since its not prod code, 400 would be the correct response code.
             return ("The show id is mandatory. Also... I am a teapot.", 418)
 
-        # else: # above short circuits so pep8/pylint says not to use an else
         _existing_show = Show.query.filter(
             Show.show_id == str(content["show_id"])
         ).one_or_none()
-        print(f"_existing_show= {_existing_show}")
-        # _existing_show = Show.query.filter(Show.show_id == "s1").one()
-        # Show.query.filter(Show.show_id == "s1").update({'rating': 'PG-14'})
 
+        # Convert input string to python date object
         if content.get("date_added"):
             content["date_added"] = datetime.datetime.strptime(
                 content["date_added"], "%Y-%m-%d"
             ).date()
 
         if _existing_show:
-            # These Three lines
+            # update all attributes from payload that correspond to a column
             for key, value in content.items():
                 if key in show_model.keys():
                     setattr(_existing_show, key, value)
 
             # commit changes (if any)
-            print(f"_existing_show= {_existing_show}")
             db.session.commit()
             return _existing_show.format()
 
-        # else: # again, above short circuits so pep8/pylint says not to use an else
+        # There was no existing show, so instead lets create one.``
         new_show = Show(**content)
-        print(f"new_show= {new_show}")
+        # save the show to the database
         db.session.add(new_show)
         db.session.commit()
-        print(f"new_show= {new_show}")
         return new_show.format()
 
 
 @ns.route("/summary")
-@ns.param("group_by", "The columns to group by")
-@ns.param("filter_value", "optional filter to apply")
-@ns.param("filter_column", "optional column to filter by")
+@ns.param("group_by", "The columns to group by (defaults to ['type', 'rating'])")
+@ns.param("filter_column", "column to filter by (optional)")
+@ns.param("filter_value", "Value to filter to (optional)")
 class ShowsSummaryList(Resource):
-    """meaningful comment here."""
+    """This API has so far, never been a Teapot."""
 
-    @ns.doc("list_aggregate")
+    @ns.doc("summarize_shows")
     def get(self):
         """List summary of shows"""
-        _query = Show.query
-        """
-        db.session.commit()
-        query = Show.query.filter(Show.cast.contains(["Ryan Reynolds"])).count()
-        )
 
-
-        db.session.commit()
-        columns = [Show.type, Show.rating]
-        Show.query.with_entities(*columns, func.count(Show.show_id)).group_by(*columns).filter(Show.cast.contains(["Ryan Reynolds"])).all()
-        """
-
-        # TY to the post
-        # https://betterprogramming.pub/how-to-implement-filtering-sorting-and-pagination-in-flask-c4def1ca004a
         _group_by = request.args.get("group_by", [], type=list)
         _filter_value = request.args.get("filter_value", None, type=str)
         _filter_column = request.args.get("filter_column", None, type=str)
 
+        # intersection of sets using & to only limit to valid keys
         _group_by_columns = list(set(show_model.keys()) & set(_group_by))
+        # set default keys if list ended up empty
         _group_by_columns = (
             _group_by_columns if _group_by_columns else ["type", "rating"]
         )
+        # convert strings to the actual attributes of `Show`
         _group_by_columns = [getattr(Show, column) for column in _group_by_columns]
 
+        # list (positional) expansion of _group_by_columns using single *
         _query = Show.query.with_entities(
             *_group_by_columns, func.count(Show.show_id)
         ).group_by(*_group_by_columns)
 
+        # if necessary apply a filter
         if isinstance(_filter_value, str) and isinstance(_filter_column, str):
             _filter_column = _filter_column.lower().replace(" ", "_")
             if _filter_column in ("cast", "director", "listed_in", "country"):
+                # the array columns need to be passed as an array
                 _filter_value = [_filter_value]
             if _filter_column in show_model.keys():
                 filter_by_column = getattr(Show, _filter_column)
                 _query = _query.filter(filter_by_column.contains(_filter_value))
 
+        # the "Row" object isn't serializable to json. Cast as a dict to get
+        # all the group by columns, then use row[-1] to get the count as I
+        # listed the count last in the call to Show.query.with_entities()
         _results = [{**dict(row), "count": row[-1]} for row in _query.all()]
-        print(_results)
-        # http://127.0.0.1:5003/shows/?sort_by=show_id&sort_direction=desc
 
         return jsonify(
             {"success": True, "results": _results, "groups": len(_results)}
-        )  # removed because after changing to `marshal_list_with()``
-        # return _results
+        )
 
 
 if __name__ == "__main__":
