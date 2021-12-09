@@ -5,6 +5,7 @@ import socket
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields
 from flask_sqlalchemy import SQLAlchemy
+from google.cloud import secretmanager
 from google.cloud.sql.connector import connector
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import func
@@ -20,32 +21,32 @@ api = Api(
 ns = api.namespace("shows", description="Netflix Shows")
 
 
-def access_secret_version(secret_id, version_id="latest"):
-    from google.cloud import secretmanager
+def access_secret_version(secret_id:str, version_id:str="latest") -> str:
+    """Fetch secrets from GCP Secret Manager."""
 
-    PROJECT_ID = os.environ.get("GCP_PROJECT", "theta-messenger-334101")
+    _project_id = os.environ.get("GCP_PROJECT", "theta-messenger-334101")
     # Create the Secret Manager client.
-    client = secretmanager.SecretManagerServiceClient()
+    _client = secretmanager.SecretManagerServiceClient()
     # Build the resource name of the secret version.
-    name = f"projects/{PROJECT_ID}/secrets/{secret_id}/versions/{version_id}"
+    _name = f"projects/{_project_id}/secrets/{secret_id}/versions/{version_id}"
     # Access the secret version.
-    response = client.access_secret_version(name=name)
+    _response = _client.access_secret_version(name=_name)
     # Return the decoded payload.
-    return response.payload.data.decode("UTF-8")
+    return _response.payload.data.decode("UTF-8")
 
 
 def open_connection():
-    db_user = access_secret_version("DB_USER")
-    db_pass = access_secret_version("DB_PASS")
-    db_name = access_secret_version("DB_NAME")
-    conn = connector.connect(
+    _db_user = access_secret_version("DB_USER")
+    _db_pass = access_secret_version("DB_PASS")
+    _db_name = access_secret_version("DB_NAME")
+    _conn = connector.connect(
         "theta-messenger-334101:us-central1:brettmoan-torqata",
         "pg8000",
-        user=db_user,
-        password=db_pass,
-        db=db_name,
+        user=_db_user,
+        password=_db_pass,
+        db=_db_name,
     )
-    return conn
+    return _conn
 
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"creator": open_connection}
@@ -171,7 +172,7 @@ class Show(db.Model):
 
 @ns.route("/")
 @ns.param("page", "The page for pagination (defaults to 1)")
-@ns.param("sort_by", "The columm to sort by)
+@ns.param("sort_by", "The columm to sort by")
 @ns.param("sort_direction", "sort asc or desc")
 @ns.param("show_id", "the unique identifier of a show")
 @ns.param("type", "Movie or TV Show")
@@ -349,6 +350,5 @@ class ShowsSummaryList(Resource):
 
 
 if __name__ == "__main__":
-    pass
-    app.run(debug=True)
+    app.run(debug=False)
     waitress.serve(app, listen="0.0.0.0:5003")
