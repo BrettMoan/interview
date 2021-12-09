@@ -1,5 +1,6 @@
 # interview
 
+## Done
 - [x] API
 - [x] swagger docs
 - [x] imported into postgres
@@ -9,6 +10,8 @@
 - [x] POST as upsert (if exists update, else insert)
 - [x] reformat data
 - [x] Aggregated summary data
+
+## Not Started
 - [ ] Unit Testing implemented
 - [ ] CI/CD
 - [ ] Authentication
