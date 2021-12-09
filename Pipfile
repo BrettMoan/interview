@@ -13,6 +13,7 @@ google-cloud-secret-manager = "==2.5.0"
 Flask = "*"
 Werkzeug = "*"
 Flask-SQLAlchemy = "*"
+pyreadline = "*"
 
 [dev-packages]
 
